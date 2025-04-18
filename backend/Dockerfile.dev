@@ -1,0 +1,12 @@
+FROM node:18
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+RUN npm install -g ts-node nodemon
+
+CMD ["nodemon", "--watch", "src", "--ext", "ts,json", "--exec", "node", "--loader", "ts-node/esm", "src/index.ts"]
