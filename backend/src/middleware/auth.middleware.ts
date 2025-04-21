@@ -21,7 +21,7 @@ export const authenticate = async (req: AuthenticatedRequest, res: Response, nex
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
-        const user = await User.findById(decoded.id).populate('role');
+        const user = await User.findById(decoded.id).select('-password').populate('role');
         if (!user) return res.status(404).json({ message: 'User not found' });
         req.user = user;
         next();
@@ -32,9 +32,23 @@ export const authenticate = async (req: AuthenticatedRequest, res: Response, nex
 
 export const authorize = (permissions: string[] = []) => {
     return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-        if (!permissions.length || hasPermissions(req.user?.role, permissions)) {
-            return next();
+        const role = req.user?.role;
+
+        // Если нет ограничений — пропускаем
+        if (!permissions.length) return next();
+
+        // Если роль не определена или это ObjectId — отклоняем
+        if (!role || typeof role === 'string' || role instanceof Types.ObjectId) {
+            return res.status(403).json({ message: 'Forbidden' });
         }
-        return res.status(403).json({ message: 'Forbidden' });
+
+        const hasAll = permissions.every((p) => role.permissions.includes(p));
+
+        if (!hasAll) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        return next();
     };
 };
+

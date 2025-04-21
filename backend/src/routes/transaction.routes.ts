@@ -1,6 +1,6 @@
 import express, { Response } from 'express';
 import mongoose from 'mongoose';
-import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
+import {authenticate, AuthenticatedRequest} from '../middleware/auth.middleware.js';
 import Transaction from '../models/Transaction.js';
 import { IRole } from '../models/Role.js';
 
@@ -34,54 +34,60 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     }
 });
 
-router.get('/', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/', authenticate, async (req: AuthenticatedRequest, res) => {
     try {
-        const { type, subType, status, minAmount, maxAmount, search, page = '1', limit = '10', userId } = req.query;
+        const { page = 1, limit = 10, search = '', type, subType, status } = req.query;
         const query: any = {};
 
-        const admin = isAdmin(req.user?.role);
-        if (!admin) {
-            query.user = req.user?._id;
-        } else if (userId) {
-            query.user = userId;
-        }
         if (type) query.type = type;
         if (subType) query.subType = subType;
         if (status) query.status = status;
-        if (minAmount || maxAmount) {
-            query.amount = {};
-            if (minAmount) query.amount.$gte = Number(minAmount);
-            if (maxAmount) query.amount.$lte = Number(maxAmount);
-        }
         if (search) {
-            query.description = new RegExp(search.toString(), 'i');
+            query.$or = [
+                { description: { $regex: search, $options: 'i' } },
+                { 'user.email': { $regex: search, $options: 'i' } },
+            ];
         }
+
+        const skip = (Number(page) - 1) * Number(limit);
+
+        const user = req.user;
+
+        if ((user?.role as IRole).name !== 'admin') {
+            query.user = user?._id;
+        }
+
+        const total = await Transaction.countDocuments(query);
 
         const transactions = await Transaction.find(query)
-            .populate('user', 'name email')
             .sort({ createdAt: -1 })
-            .skip((+page - 1) * +limit)
-            .limit(+limit);
+            .skip(skip)
+            .limit(Number(limit))
+            .populate('user', 'email');
 
-        const count = await Transaction.countDocuments(query);
-        res.json({ data: transactions, total: count });
-    } catch (err: any) {
-        res.status(500).json({ message: err.message });
+        res.json({ transactions, total });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
-router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id', authenticate, async (req: AuthenticatedRequest, res) => {
     try {
-        const transaction = await Transaction.findById(req.params.id).populate('user', 'name email');
+        const transaction = await Transaction.findById(req.params.id).populate('user');
         if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
 
-        const isOwner = transaction.user._id.equals(req.user?._id);
-        const admin = isAdmin(req.user?.role);
-        if (!isOwner && !admin) return res.status(403).json({ message: 'Forbidden' });
+        const isOwner = transaction.user._id.toString() === req?.user?._id.toString();
+        const isAdmin = (req?.user?.role as IRole)?.name === 'admin';
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
 
         res.json(transaction);
-    } catch (err: any) {
-        res.status(500).json({ message: err.message });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 

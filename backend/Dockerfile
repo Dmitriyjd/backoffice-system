@@ -1,18 +1,8 @@
-# Use official Node.js image
-FROM node:18
+FROM node:20
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files and install
-COPY package*.json ./
+COPY . .
 RUN npm install
 
-# Copy rest of app
-COPY . .
-
-# Build TypeScript
-RUN npm run build
-
-# Run app
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
