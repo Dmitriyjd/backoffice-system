@@ -17,6 +17,7 @@
 ```
 
 ### 2. Create `.env`
+#### Default .env example
 ```env
 MONGO_URI=mongodb://localhost:27017/your_db
 JWT_SECRET=supersecurekey
@@ -39,8 +40,8 @@ To populate initial data (roles, admin/user, test transactions):
 This will create:
 - Roles: `admin`, `user`
 - Users:
-    - **Admin**: `admin@example.com` / `admin123`
-    - **User**: `user@example.com` / `user123`
+    - **Admin**: `admin@example.com` / `adminPassword123`
+    - **User**: `user@example.com` / `userPassword123`
 - Transactions for the standard user (reward, purchase, refund)
 
 ## 🐳 Docker

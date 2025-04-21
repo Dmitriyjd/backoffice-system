@@ -29,8 +29,8 @@ const seed = async () => {
         await adminRole.save();
         await userRole.save();
 
-        const adminPassword = await bcrypt.hash('admin123', 10);
-        const userPassword = await bcrypt.hash('user123', 10);
+        const adminPassword = await bcrypt.hash('adminPassword123', 10);
+        const userPassword = await bcrypt.hash('userPassword123', 10);
 
         const admin = new User({
             name: 'Admin',

@@ -34,10 +34,8 @@ export const authorize = (permissions: string[] = []) => {
     return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         const role = req.user?.role;
 
-        // Если нет ограничений — пропускаем
         if (!permissions.length) return next();
 
-        // Если роль не определена или это ObjectId — отклоняем
         if (!role || typeof role === 'string' || role instanceof Types.ObjectId) {
             return res.status(403).json({ message: 'Forbidden' });
         }
